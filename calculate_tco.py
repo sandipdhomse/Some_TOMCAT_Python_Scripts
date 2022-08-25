@@ -21,7 +21,7 @@ import os
 
 # Convert numpy array to Xarray
 def make_xarray(odata,lats,lons,ntimes,vname,sdate,unit1):
-
+    ## get the middle of the month date but does not work all the time
     time1 = pd.date_range(sdate, periods=ntimes, freq="1M")+ pd.DateOffset(days=-16)
     ds = xr.Dataset({vname: (['time', 'lat', 'lon'], odata.astype('float32'), {'units':unit1})},
                  coords={'lon': (['lon'], lons, {'units':'degrees_east'}),
@@ -42,11 +42,7 @@ def make_xarray(odata,lats,lons,ntimes,vname,sdate,unit1):
     ds.attrs['comment'] = ''
     return ds
 
-
-
-
-## sometimes model grid point pressure are larger than 1000hPa or lesser than 0.1hPa
-
+## Get surface area of each grid box
 def get_area(nlons,nlats,lats):
     re=6.37e6
     dlon= math.radians(360./nlons)
@@ -60,20 +56,17 @@ def get_area(nlons,nlats,lats):
 
 def get_tco(afile):
     COLFAC = 2.132E20
-    grav = 9.80616#[ms-2]
-    
+    grav = 9.80616#[ms-2] 
     vn1 = nc.MFDataset(afile)
-    #print(vn1)
+   
     lons = vn1.variables["lon"][:]
     lats = vn1.variables["lat"][:]
     niv = vn1.variables["niv"][:]
     
     tracer = vn1.variables["O3_mm"]
     mass = vn1.variables["sm_mm"][:]
-    #area = vn1.variables["surfarea"]
     time = vn1.variables["time"][:]
     
-    #rint(sarea[:,2])
     nlons  =len(lons)
     nlats  =len(lats)
     ntimes = len(time)
@@ -82,6 +75,7 @@ def get_tco(afile):
 
     mass1 = mass*grav*COLFAC
     mass2 = 0.*mass
+    
     for t in range(ntimes):
         for l in range(0,nlev):
             mass2[t,l,:,:] = (mass1[t,l,:,:]*tracer[t,l,:,:])/sarea[:,:]
@@ -97,6 +91,8 @@ def get_tco(afile):
     ds= make_xarray(tdata,lats,lons, ntimes, vname, sdate,unit)
     return ds
    
+## note that input file is in the same directory
+## If input files are somewhere use glob module
 
 fname = "TOMCAT_RUN741_testfile.nc"## input file
 fname = "/nfs/a176/lecmc/MPC741/MPC741_t042_201901mm.nc"
